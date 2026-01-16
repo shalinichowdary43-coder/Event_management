@@ -1,0 +1,16 @@
+{
+  "doctype": "Report",
+  "name": "Ticket Sales and Revenue Report",
+  "report_name": "Ticket Sales and Revenue Report",
+  "ref_doctype": "Events",
+  "report_type": "Script Report",
+  "is_standard": "Yes",
+  "disabled": 0,
+  "module": "Event Management",
+  "add_total_row": 0,
+  "roles": [
+    {
+      "role": "System Manager"
+    }
+  ]
+}

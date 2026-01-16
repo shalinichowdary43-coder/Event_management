@@ -1,0 +1,186 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+
+<h2 style="margin-bottom: 20px;">Event Planner Dashboard</h2>
+
+<div class="card" style="padding: 15px; margin-bottom: 20px;">
+  <h4 id="form_title">Create New Event</h4>
+
+  <input type="hidden" id="event_name">
+
+  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <input class="form-control" id="title" placeholder="Event Title" style="width: 200px;">
+    <input class="form-control" id="event_date" type="date" style="width: 180px;">
+    <input class="form-control" id="location" placeholder="Location" style="width: 180px;">
+    <input class="form-control" id="capacity" type="number" placeholder="Capacity" style="width: 140px;">
+    <input class="form-control" id="ticket_price" type="number" placeholder="Ticket Price" style="width: 150px;">
+  </div>
+
+  <div style="margin-top: 15px;">
+    <button class="btn btn-primary" onclick="submitEvent()">Save</button>
+    <button class="btn btn-secondary" onclick="resetForm()" style="margin-left: 10px;">Clear</button>
+  </div>
+</div>
+
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Event</th>
+      <th>Date</th>
+      <th>Location</th>
+      <th>Capacity</th>
+      <th>Tickets Sold</th>
+      <th>Available</th>
+      <th>Ticket Price</th>
+      <th>Ticket Status</th>
+      <th>Revenue</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.title }}</td>
+      <td>{{ e.event_date }}</td>
+      <td>{{ e.location }}</td>
+      <td>{{ e.capacity }}</td>
+      <td>{{ e.tickets_sold }}</td>
+      <td>{{ e.availability }}</td>
+      <td>₹ {{ e.ticket_price }}</td>
+
+     
+      <td style="min-width:100px;">
+        {% set sold = e.tickets_sold or 0 %}
+        {% set cap = e.capacity or 0 %}
+        {% set percent = (sold * 100 / cap) if cap > 0 else 0 %}
+
+        <div style="font-size:12px; margin-bottom:5px;">
+          Sold {{ sold }} / {{ cap }}
+        </div>
+
+   
+      </td>
+
+      <td>₹ {{ e.revenue }}</td>
+
+      <td>
+        <button class="btn btn-sm btn-warning"
+          onclick="editEvent('{{ e.name }}', '{{ e.title }}', '{{ e.event_date }}', '{{ e.location }}', '{{ e.capacity }}', '{{ e.ticket_price }}')">
+          Edit
+        </button>
+
+        <button class="btn btn-sm btn-danger"
+          style="margin-left: 5px;"
+          onclick="deleteEvent('{{ e.name }}')">
+          Delete
+        </button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if events|length == 0 %}
+<p>No events found.</p>
+{% endif %}
+
+
+<hr style="margin: 40px 0;">
+
+<h3 style="margin-bottom: 15px;">Attendee Management</h3>
+
+<div class="card" style="padding: 15px; margin-bottom: 20px;">
+  <h5>Select Event</h5>
+  <select class="form-control" id="selected_event" style="max-width: 400px;" onchange="loadAttendees()">
+    {% for e in events %}
+      <option value="{{ e.name }}">{{ e.title }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="card" style="padding: 15px; margin-bottom: 20px;">
+  <h5>Register Attendee</h5>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <input class="form-control" id="attendee_name" placeholder="Attendee Name" style="width: 250px;">
+    <input class="form-control" id="attendee_email" placeholder="Email" style="width: 280px;">
+    <button class="btn btn-primary" onclick="registerAttendee()">Register</button>
+  </div>
+</div>
+
+<div class="card" style="padding: 15px;">
+  <h5>Attendees for Selected Event</h5>
+
+  <table class="table table-bordered" style="margin-top: 15px;">
+    <thead>
+      <tr>
+        <th>Attendee Name</th>
+        <th>Email</th>
+        <th>Event</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="attendees_table_body">
+      <tr>
+        <td colspan="6" style="text-align:center;">Loading...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<div style="display:flex; gap:15px; flex-wrap:wrap; margin:20px 0;">
+
+  <div class="card" style="padding:15px; width:220px;">
+    <h6>Total Events</h6>
+    <h3>{{ events|length }}</h3>
+  </div>
+
+  <div class="card" style="padding:15px; width:220px;">
+    <h6>Total Tickets Sold</h6>
+    <h3>{{ events | sum(attribute="tickets_sold") }}</h3>
+  </div>
+
+  <div class="card" style="padding:15px; width:220px;">
+    <h6>Total Available Tickets</h6>
+    <h3>{{ events | sum(attribute="availability") }}</h3>
+  </div>
+
+</div>
+
+
+<div class="card" style="padding:15px; margin-bottom:20px;">
+  <h4 style="margin-bottom:15px;">Revenue by Event (Donut)</h4>
+  <div style="max-width:500px;">
+    <canvas id="revenueDonutChart"></canvas>
+  </div>
+</div>
+
+
+<hr style="margin: 40px 0;">
+
+<h3 style="margin-bottom: 15px;">Import Events from CSV</h3>
+
+<div class="card" style="padding:15px; margin-bottom:20px;">
+  <p style="margin-bottom:10px;">
+    Upload CSV with columns:
+    <b>Title, Event Date, Capacity, Ticket Price, Location</b>
+  </p>
+
+  <input type="file" id="csv_file" accept=".csv" class="form-control" style="max-width:400px;">
+  
+  <button class="btn btn-primary" style="margin-top:15px;" onclick="uploadCSV()">
+    Upload & Import
+  </button>
+
+  <p id="csv_status" style="margin-top:10px;"></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="/assets/event_management/js/event_planner.js"></script>
+
+{% endblock %}
